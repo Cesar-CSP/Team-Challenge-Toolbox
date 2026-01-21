@@ -47,3 +47,38 @@ def describe_df(df):
     resumen = resumen.sort_values("CARDIN (%)", ascending=False)
 
     return resumen
+
+# Función tipifica_variables
+
+def tipifica_variables(df, umbral_categoria, umbral_continua):
+    """
+    Clasifica las variables de un DataFrame según su cardinalidad y porcentaje de cardinalidad.
+
+    Argumentos:
+    df(pd.DataFrame): DataFrame de entrada con las variables a analizar.
+    umbral_categoria (int): Umbral máximo de cardinalidad para considerar una variable como categórica.
+    umbral_continua (float): Umbral mínimo de porcentaje de cardinalidad para considerar una variable como continua.
+
+    Retorna:
+    pd.DataFrame: DataFrame con dos columnas: 'nombre_variable' y 'tipo_sugerido', indican el tipo asignado a cada variable.
+    """
+    resultado = []
+
+    n_filas = len(df)
+
+    for col in df.columns:
+        cardinalidad = df[col].nunique()
+        porcentaje_card = (cardinalidad / n_filas) * 100
+
+        if cardinalidad == 2:
+            tipo = "Binaria"
+        elif cardinalidad < umbral_categoria:
+            tipo = "Categórica"
+        elif porcentaje_card >= umbral_continua:
+            tipo = "Numerica Continua"
+        else:
+            tipo = "Numerica Discreta"
+
+        resultado.append({"nombre_variable": col, "tipo_sugerido": tipo})
+
+    return pd.DataFrame(resultado)
