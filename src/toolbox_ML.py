@@ -210,33 +210,60 @@ def plot_features_num_regression(df, target_col="", columns=[], umbral_corr=0, p
     list: Lista de columnas que cumplen las condiciones.
     """
 
+# --------------------
+# Checks iniciales
+# --------------------
+
+ # Comprobamos que df sea un DataFrame
+
     if not isinstance(df, pd.DataFrame):
         print("Error: df debe ser un pandas DataFrame.")
         return None
 
+ # Comprobamos que target_col exista en el DataFrame
+
     if target_col == "" or target_col not in df.columns:
         print("Error: target_col debe ser una columna válida del dataframe.")
         return None
+    
+ # Comprobamos que target_col sea numérica
 
     if not pd.api.types.is_numeric_dtype(df[target_col]):
         print("Error: target_col debe ser una variable numérica.")
         return None
+    
+ # Comprobamos que tenga suficiente cardinalidad
 
     if df[target_col].nunique() < 10:
         print("Error: target_col no parece una variable numérica continua.")
         return None
+    
+ # Comprobamos el umbral de correlación
 
     if not isinstance(umbral_corr, (int, float)) or not (0 <= umbral_corr <= 1):
         print("Error: umbral_corr debe estar entre 0 y 1.")
         return None
+ 
+ # Comprobamos el pvalue
 
     if pvalue is not None:
         if not isinstance(pvalue, (int, float)) or not (0 < pvalue < 1):
             print("Error: pvalue debe ser None o un float entre 0 y 1.")
             return None
 
+# --------------------
+# Selección de columnas numéricas
+# --------------------
+
+ # Obtenemos columnas numéricas
+
     num_cols = df.select_dtypes(include=np.number).columns.tolist()
+
+ # Eliminamos el target de la lista
+
     num_cols.remove(target_col)
+
+ # Si no se pasan columnas, usamos todas las numéricas
 
     if columns:
         cols_to_eval = columns
@@ -245,16 +272,28 @@ def plot_features_num_regression(df, target_col="", columns=[], umbral_corr=0, p
 
     selected_features = []
 
+# --------------------
+# Cálculo de correlaciones
+# --------------------
+
+ # Saltamos columnas que no sean numéricas
+
     for col in cols_to_eval:
         if not pd.api.types.is_numeric_dtype(df[col]):
             continue
+
+ # Eliminamos valores nulos
 
         df_aux = df[[target_col, col]].dropna()
 
         if len(df_aux) < 2:
             continue
 
+ # Calculamos correlación de Pearson
+
         corr, p_val = pearsonr(df_aux[target_col], df_aux[col])
+
+ # Comprobamos el umbral de correlación
 
         if abs(corr) >= umbral_corr:
             if pvalue is None:
@@ -267,14 +306,23 @@ def plot_features_num_regression(df, target_col="", columns=[], umbral_corr=0, p
         print("No hay variables que cumplan los criterios.")
         return []
 
+# --------------------
+# Generación de pairplots (máx 5 variables)
+# --------------------
+
     all_columns = [target_col] + selected_features
     max_vars = 5
+
+ # Dividimos en bloques de máximo 5 variables
+
     blocks = [all_columns[i:i + max_vars] for i in range(0, len(all_columns), max_vars - 1)]
 
     for block in blocks:
         if target_col not in block:
             block = [target_col] + block
 
+ # Pintamos el pairplot
+ 
         sns.pairplot(df[block].dropna())
         plt.show()
 
