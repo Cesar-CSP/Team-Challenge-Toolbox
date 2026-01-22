@@ -189,3 +189,93 @@ def get_features_num_regression(df, target_col, umbral_corr, pvalue=None):
                 if p_val <= pvalue:
                     features_num.append(col)
     return features_num
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+
+def plot_features_num_regression(df, target_col="", columns=[], umbral_corr=0, pvalue=None):
+    """
+    Genera pairplots entre la variable objetivo y un conjunto de variables numéricas
+    que cumplen un umbral mínimo de correlación y, opcionalmente, significación estadística.
+
+    Argumentos:
+    df (pd.DataFrame): DataFrame con las variables predictoras y el target.
+    target_col (str): Nombre de la columna objetivo del modelo de regresión.
+    columns (list): Lista de nombres de columnas a evaluar.
+    umbral_corr (float): Umbral mínimo de correlación absoluta (entre 0 y 1).
+    pvalue (float, opcional): Nivel de significación estadística.
+
+    Retorna:
+    list: Lista de columnas que cumplen las condiciones.
+    """
+
+    if not isinstance(df, pd.DataFrame):
+        print("Error: df debe ser un pandas DataFrame.")
+        return None
+
+    if target_col == "" or target_col not in df.columns:
+        print("Error: target_col debe ser una columna válida del dataframe.")
+        return None
+
+    if not pd.api.types.is_numeric_dtype(df[target_col]):
+        print("Error: target_col debe ser una variable numérica.")
+        return None
+
+    if df[target_col].nunique() < 10:
+        print("Error: target_col no parece una variable numérica continua.")
+        return None
+
+    if not isinstance(umbral_corr, (int, float)) or not (0 <= umbral_corr <= 1):
+        print("Error: umbral_corr debe estar entre 0 y 1.")
+        return None
+
+    if pvalue is not None:
+        if not isinstance(pvalue, (int, float)) or not (0 < pvalue < 1):
+            print("Error: pvalue debe ser None o un float entre 0 y 1.")
+            return None
+
+    num_cols = df.select_dtypes(include=np.number).columns.tolist()
+    num_cols.remove(target_col)
+
+    if columns:
+        cols_to_eval = columns
+    else:
+        cols_to_eval = num_cols
+
+    selected_features = []
+
+    for col in cols_to_eval:
+        if not pd.api.types.is_numeric_dtype(df[col]):
+            continue
+
+        df_aux = df[[target_col, col]].dropna()
+
+        if len(df_aux) < 2:
+            continue
+
+        corr, p_val = pearsonr(df_aux[target_col], df_aux[col])
+
+        if abs(corr) >= umbral_corr:
+            if pvalue is None:
+                selected_features.append(col)
+            else:
+                if p_val <= pvalue:
+                    selected_features.append(col)
+
+    if not selected_features:
+        print("No hay variables que cumplan los criterios.")
+        return []
+
+    all_columns = [target_col] + selected_features
+    max_vars = 5
+    blocks = [all_columns[i:i + max_vars] for i in range(0, len(all_columns), max_vars - 1)]
+
+    for block in blocks:
+        if target_col not in block:
+            block = [target_col] + block
+
+        sns.pairplot(df[block].dropna())
+        plt.show()
+
+    return selected_features
