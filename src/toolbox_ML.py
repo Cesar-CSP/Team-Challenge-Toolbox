@@ -179,7 +179,7 @@ def get_features_num_regression(df, target_col, umbral_corr, pvalue=None):
     # Cálculo de correlaciones
     # --------------------
     for col in num_cols:
-        corr, p_val = pearsonr(data[target_col], data[col])
+        corr, p_val = pearsonr(df[target_col], df[col])
         # Check del umbral de correlación
         if abs(corr) > umbral_corr:
             if pvalue is None:
