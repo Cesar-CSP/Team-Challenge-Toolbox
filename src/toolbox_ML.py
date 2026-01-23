@@ -52,39 +52,6 @@ def describe_df(df):
 
 # Función tipifica_variables
 
-'''def tipifica_variables(df, umbral_categoria, umbral_continua):
-    """
-    Clasifica las variables de un DataFrame según su cardinalidad y porcentaje de cardinalidad.
-
-    Argumentos:
-    df(pd.DataFrame): DataFrame de entrada con las variables a analizar.
-    umbral_categoria (int): Umbral máximo de cardinalidad para considerar una variable como categórica.
-    umbral_continua (float): Umbral mínimo de porcentaje de cardinalidad para considerar una variable como continua.
-
-    Retorna:
-    pd.DataFrame: DataFrame con dos columnas: 'nombre_variable' y 'tipo_sugerido', indican el tipo asignado a cada variable.
-    """
-    resultado = []
-
-    n_filas = len(df)
-
-    for col in df.columns:
-        cardinalidad = df[col].nunique()
-        porcentaje_card = (cardinalidad / n_filas) * 100
-
-        if cardinalidad == 2:
-            tipo = "Binaria"
-        elif cardinalidad < umbral_categoria:
-            tipo = "Categórica"
-        elif porcentaje_card >= umbral_continua:
-            tipo = "Numerica Continua"
-        else:
-            tipo = "Numerica Discreta"
-
-        resultado.append({"nombre_variable": col, "tipo_sugerido": tipo})
-
-    return pd.DataFrame(resultado)'''
-    
 
 def tipifica_variables(df):
     """
@@ -120,7 +87,6 @@ def tipifica_variables(df):
 
     return pd.DataFrame(resultado)
 
-
 def get_features_num_regression(df, target_col, umbral_corr, pvalue=None):
     """
     Devuelve una lista de variables numéricas del dataframe cuya correlación
@@ -140,9 +106,9 @@ def get_features_num_regression(df, target_col, umbral_corr, pvalue=None):
           de correlación y, si aplica, significación estadística. Devuelve None si
           los argumentos de entrada no son válidos.
     """
-    # --------------------
+    
     # Checks iniciales
-    # --------------------
+    
     # Check dataframe
     if not isinstance(df, pd.DataFrame):
         print("Error: df debe ser un pandas DataFrame.")
@@ -168,18 +134,18 @@ def get_features_num_regression(df, target_col, umbral_corr, pvalue=None):
         if not isinstance(pvalue, (int, float)) or not (0 < pvalue < 1):
             print("Error: pvalue debe ser None o un float entre 0 y 1.")
             return None
-    # --------------------
+    
     # Selección de columnas numéricas
-    # --------------------
+    
     num_cols = df.select_dtypes(include=np.number).columns.tolist()
     # Eliminamos el target de la lista
     num_cols.remove(target_col)
     features_num = []
-    # --------------------
+   
     # Cálculo de correlaciones
-    # --------------------
+   
     for col in num_cols:
-        corr, p_val = pearsonr(data[target_col], data[col])
+        corr, p_val = pearsonr(df[target_col], df[col])
         # Check del umbral de correlación
         if abs(corr) > umbral_corr:
             if pvalue is None:
@@ -189,6 +155,7 @@ def get_features_num_regression(df, target_col, umbral_corr, pvalue=None):
                 if p_val <= pvalue:
                     features_num.append(col)
     return features_num
+
 
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -210,9 +177,9 @@ def plot_features_num_regression(df, target_col="", columns=[], umbral_corr=0, p
     list: Lista de columnas que cumplen las condiciones.
     """
 
-# --------------------
+
 # Checks iniciales
-# --------------------
+
 
  # Comprobamos que df sea un DataFrame
 
@@ -251,9 +218,9 @@ def plot_features_num_regression(df, target_col="", columns=[], umbral_corr=0, p
             print("Error: pvalue debe ser None o un float entre 0 y 1.")
             return None
 
-# --------------------
+
 # Selección de columnas numéricas
-# --------------------
+
 
  # Obtenemos columnas numéricas
 
@@ -272,9 +239,9 @@ def plot_features_num_regression(df, target_col="", columns=[], umbral_corr=0, p
 
     selected_features = []
 
-# --------------------
+
 # Cálculo de correlaciones
-# --------------------
+
 
  # Saltamos columnas que no sean numéricas
 
@@ -306,9 +273,9 @@ def plot_features_num_regression(df, target_col="", columns=[], umbral_corr=0, p
         print("No hay variables que cumplan los criterios.")
         return []
 
-# --------------------
+
 # Generación de pairplots (máx 5 variables)
-# --------------------
+
 
     all_columns = [target_col] + selected_features
     max_vars = 5
@@ -325,5 +292,305 @@ def plot_features_num_regression(df, target_col="", columns=[], umbral_corr=0, p
  
         sns.pairplot(df[block].dropna())
         plt.show()
+
+    return selected_features
+
+
+# IMPORTACIÓN DE LIBRERÍAS NECESARIAS
+
+# ============================================================
+# IMPORTACIÓN DE LIBRERÍAS NECESARIAS
+# ============================================================
+
+import pandas as pd                     # Manipulación de datos
+import numpy as np                      # Operaciones numéricas
+from scipy.stats import f_oneway, ttest_ind   # ANOVA y t-test
+import matplotlib.pyplot as plt         # Gráficos opcionales
+
+
+# ============================================================
+# FUNCIÓN: get_features_cat_regression
+# ============================================================
+
+def get_features_cat_regression(df, target_col, pvalue=0.05, columns=None, with_individual_plot=False):
+    """
+    Evalúa la relación estadística entre variables categóricas y una variable objetivo numérica
+    dentro de un DataFrame. Selecciona automáticamente el test adecuado (t-test o ANOVA)
+    según el número de categorías de cada variable. Devuelve una lista con las columnas
+    categóricas que presentan una relación estadísticamente significativa con el target.
+
+    Esta función es útil para procesos de selección de características (feature selection)
+    en problemas de regresión, permitiendo identificar qué variables categóricas tienen
+    un impacto significativo sobre la variable objetivo.
+
+    Argumentos:
+    -----------
+    df : pandas.DataFrame
+        DataFrame que contiene la variable objetivo y las variables categóricas a evaluar.
+
+    target_col : str
+        Nombre de la columna objetivo. Debe ser numérica continua o discreta con alta cardinalidad.
+
+    pvalue : float, opcional (default = 0.05)
+        Nivel de significación estadística. Una variable se considera significativa si su
+        p-value es menor o igual a este valor.
+
+    columns : list, opcional (default = None)
+        Lista de columnas categóricas a evaluar. Si es None, se seleccionan automáticamente
+        todas las columnas categóricas del DataFrame.
+
+    with_individual_plot : bool, opcional (default = False)
+        Si es True, se generan histogramas del target agrupados por categoría para cada
+        variable significativa.
+
+    Retorna:
+    --------
+    list
+        Lista con los nombres de las columnas categóricas que muestran relación significativa
+        con el target. Si ocurre un error en los parámetros de entrada, retorna None.
+    """
+
+    # ============================================================
+    # VALIDACIONES DE ENTRADA
+    # ============================================================
+
+    # Comprobar que df es un DataFrame
+    if not isinstance(df, pd.DataFrame):
+        print("Error: df debe ser un DataFrame.")
+        return None
+
+    # Comprobar que target_col existe
+    if target_col not in df.columns:
+        print(f"Error: la columna '{target_col}' no existe en el DataFrame.")
+        return None
+
+    # Comprobar que target_col es numérico
+    if not pd.api.types.is_numeric_dtype(df[target_col]):
+        print("Error: target_col debe ser numérico.")
+        return None
+
+    # Comprobar cardinalidad mínima del target
+    if df[target_col].nunique() < 10:
+        print("Error: target_col no tiene suficiente cardinalidad para ser un target de regresión.")
+        return None
+
+    # Comprobar pvalue
+    if not isinstance(pvalue, (float, int)) or not (0 < pvalue < 1):
+        print("Error: pvalue debe ser un float entre 0 y 1.")
+        return None
+
+    # Comprobar columns
+    if columns is not None and not isinstance(columns, list):
+        print("Error: columns debe ser una lista o None.")
+        return None
+
+    # ============================================================
+    # SELECCIÓN AUTOMÁTICA DE VARIABLES CATEGÓRICAS
+    # ============================================================
+
+    if columns is None:
+        columns = df.select_dtypes(include=["object", "category"]).columns.tolist()
+
+    selected_features = []  # Lista donde guardaremos las columnas significativas
+
+    # ============================================================
+    # EVALUACIÓN ESTADÍSTICA DE CADA VARIABLE CATEGÓRICA
+    # ============================================================
+
+    for col in columns:
+
+        # Saltar columnas con más del 50% de nulos
+        if df[col].isna().mean() > 0.5:
+            continue
+
+        # Categorías únicas sin nulos
+        categories = df[col].dropna().unique()
+
+        # Crear grupos del target por categoría
+        groups = [df[df[col] == cat][target_col].dropna() for cat in categories]
+
+        # Necesitamos al menos dos grupos
+        if len(groups) < 2:
+            continue
+
+        # Saltar si algún grupo está vacío
+        if any(len(g) == 0 for g in groups):
+            continue
+
+        # ============================================================
+        # SELECCIÓN AUTOMÁTICA DEL TEST ESTADÍSTICO
+        # ============================================================
+
+        if len(groups) == 2:
+            # t-test para dos categorías
+            stat, p_val = ttest_ind(groups[0], groups[1], equal_var=False)
+        else:
+            # ANOVA para más de dos categorías
+            stat, p_val = f_oneway(*groups)
+
+        # ============================================================
+        # COMPROBACIÓN DE SIGNIFICACIÓN
+        # ============================================================
+
+        if p_val <= pvalue:
+            selected_features.append(col)
+
+            # Gráficos opcionales
+            if with_individual_plot:
+                plt.figure(figsize=(8, 5))
+                for cat in categories:
+                    plt.hist(df[df[col] == cat][target_col],
+                             bins=20, alpha=0.5, label=str(cat))
+                plt.title(f"Distribución de {target_col} por categoría de {col}")
+                plt.xlabel(target_col)
+                plt.ylabel("Frecuencia")
+                plt.legend()
+                plt.show()
+
+    # ============================================================
+    # MOSTRAR RESULTADO DIRECTAMENTE
+    # ============================================================
+
+    print("Columnas significativas:", selected_features)
+
+    return selected_features
+
+
+
+# ============================================================
+# IMPORTACIÓN DE LIBRERÍAS NECESARIAS
+# ============================================================
+
+import pandas as pd
+import numpy as np
+from scipy.stats import f_oneway, ttest_ind
+import matplotlib.pyplot as plt
+
+
+# FUNCIÓN: plot_features_cat_regression
+
+
+def plot_features_cat_regression(df, target_col="", columns=None, pvalue=0.05, with_individual_plot=False):
+    """
+    Evalúa la relación estadística entre un conjunto de variables (categóricas o numéricas)
+    y una variable objetivo numérica continua. La función genera histogramas agrupados
+    únicamente para aquellas variables cuyo test estadístico (t-test o ANOVA) resulte
+    significativo según el nivel de significación indicado.
+
+    Esta función está diseñada para análisis exploratorio y selección de características
+    en problemas de regresión, permitiendo visualizar cómo varía el target según los
+    valores de cada variable categórica o numérica discretizada.
+
+    Argumentos:
+    -----------
+    df : pandas.DataFrame
+        DataFrame que contiene la variable objetivo y las variables a evaluar.
+
+    target_col : str
+        Nombre de la columna objetivo. Debe ser numérica continua o discreta con alta cardinalidad.
+
+    columns : list, opcional (default = None)
+        Lista de columnas a evaluar. Si es None o lista vacía, se seleccionarán automáticamente
+        las columnas NUMÉRICAS del DataFrame. Si contiene valores, se evaluarán únicamente
+        esas columnas (tratadas como categóricas).
+
+    pvalue : float, opcional (default = 0.05)
+        Nivel de significación estadística. Una variable se considera significativa si su
+        p-value es menor o igual a este valor.
+
+    with_individual_plot : bool, opcional (default = False)
+        Si es True, se generan histogramas del target agrupados por categoría para cada
+        variable significativa.
+
+    Retorna:
+    --------
+    list
+        Lista con los nombres de las columnas que presentan relación significativa con el target.
+        La función imprime directamente la lista final.
+    """
+
+    # VALIDACIONES DE ENTRADA
+
+    if not isinstance(df, pd.DataFrame):
+        print("Error: df debe ser un DataFrame.")
+        return None
+
+    if target_col not in df.columns:
+        print(f"Error: la columna '{target_col}' no existe en el DataFrame.")
+        return None
+
+    if not pd.api.types.is_numeric_dtype(df[target_col]):
+        print("Error: target_col debe ser numérico.")
+        return None
+
+    if df[target_col].nunique() < 10:
+        print("Error: target_col no tiene suficiente cardinalidad para regresión.")
+        return None
+
+    if not isinstance(pvalue, (float, int)) or not (0 < pvalue < 1):
+        print("Error: pvalue debe ser un float entre 0 y 1.")
+        return None
+
+    if columns is not None and not isinstance(columns, list):
+        print("Error: columns debe ser una lista o None.")
+        return None
+
+    # SELECCIÓN AUTOMÁTICA DE COLUMNAS
+
+    # Si columns está vacío o None → usar NUMÉRICAS
+    if not columns:
+        columns = df.select_dtypes(include=["number"]).columns.tolist()
+        columns.remove(target_col)  # Evitar usar el target como predictor
+
+    selected_features = []
+
+    # EVALUACIÓN ESTADÍSTICA
+    
+    for col in columns:
+
+        # Saltar columnas con demasiados nulos
+        if df[col].isna().mean() > 0.5:
+            continue
+
+        # Convertir numéricas a "pseudo-categóricas" si tienen demasiados valores únicos
+        if pd.api.types.is_numeric_dtype(df[col]) and df[col].nunique() > 20:
+            continue  # No tiene sentido hacer histogramas por categoría con 200 valores
+
+        # Obtener categorías únicas
+        categories = df[col].dropna().unique()
+
+        # Crear grupos del target
+        groups = [df[df[col] == cat][target_col].dropna() for cat in categories]
+
+        if len(groups) < 2:
+            continue
+
+        if any(len(g) == 0 for g in groups):
+            continue
+
+        # Selección automática del test
+        if len(groups) == 2:
+            stat, p_val = ttest_ind(groups[0], groups[1], equal_var=False)
+        else:
+            stat, p_val = f_oneway(*groups)
+
+        # Si es significativa → guardar y graficar
+        if p_val <= pvalue:
+            selected_features.append(col)
+
+            if with_individual_plot:
+                plt.figure(figsize=(8, 5))
+                for cat in categories:
+                    plt.hist(df[df[col] == cat][target_col],
+                             bins=20, alpha=0.5, label=str(cat))
+                plt.title(f"Distribución de {target_col} por categoría de {col}")
+                plt.xlabel(target_col)
+                plt.ylabel("Frecuencia")
+                plt.legend()
+                plt.show()
+    
+    # MOSTRAR RESULTADO DIRECTAMENTE
+
+    print("Columnas significativas:", selected_features)
 
     return selected_features
