@@ -296,11 +296,8 @@ def plot_features_num_regression(df, target_col="", columns=[], umbral_corr=0, p
     return selected_features
 
 
-# IMPORTACIÓN DE LIBRERÍAS NECESARIAS
 
-# ============================================================
 # IMPORTACIÓN DE LIBRERÍAS NECESARIAS
-# ============================================================
 
 import pandas as pd                     # Manipulación de datos
 import numpy as np                      # Operaciones numéricas
@@ -308,9 +305,7 @@ from scipy.stats import f_oneway, ttest_ind   # ANOVA y t-test
 import matplotlib.pyplot as plt         # Gráficos opcionales
 
 
-# ============================================================
 # FUNCIÓN: get_features_cat_regression
-# ============================================================
 
 def get_features_cat_regression(df, target_col, pvalue=0.05, columns=None, with_individual_plot=False):
     """
@@ -350,9 +345,7 @@ def get_features_cat_regression(df, target_col, pvalue=0.05, columns=None, with_
         con el target. Si ocurre un error en los parámetros de entrada, retorna None.
     """
 
-    # ============================================================
     # VALIDACIONES DE ENTRADA
-    # ============================================================
 
     # Comprobar que df es un DataFrame
     if not isinstance(df, pd.DataFrame):
@@ -384,18 +377,14 @@ def get_features_cat_regression(df, target_col, pvalue=0.05, columns=None, with_
         print("Error: columns debe ser una lista o None.")
         return None
 
-    # ============================================================
     # SELECCIÓN AUTOMÁTICA DE VARIABLES CATEGÓRICAS
-    # ============================================================
 
     if columns is None:
         columns = df.select_dtypes(include=["object", "category"]).columns.tolist()
 
     selected_features = []  # Lista donde guardaremos las columnas significativas
 
-    # ============================================================
     # EVALUACIÓN ESTADÍSTICA DE CADA VARIABLE CATEGÓRICA
-    # ============================================================
 
     for col in columns:
 
@@ -417,9 +406,7 @@ def get_features_cat_regression(df, target_col, pvalue=0.05, columns=None, with_
         if any(len(g) == 0 for g in groups):
             continue
 
-        # ============================================================
         # SELECCIÓN AUTOMÁTICA DEL TEST ESTADÍSTICO
-        # ============================================================
 
         if len(groups) == 2:
             # t-test para dos categorías
@@ -428,9 +415,7 @@ def get_features_cat_regression(df, target_col, pvalue=0.05, columns=None, with_
             # ANOVA para más de dos categorías
             stat, p_val = f_oneway(*groups)
 
-        # ============================================================
         # COMPROBACIÓN DE SIGNIFICACIÓN
-        # ============================================================
 
         if p_val <= pvalue:
             selected_features.append(col)
@@ -447,19 +432,15 @@ def get_features_cat_regression(df, target_col, pvalue=0.05, columns=None, with_
                 plt.legend()
                 plt.show()
 
-    # ============================================================
     # MOSTRAR RESULTADO DIRECTAMENTE
-    # ============================================================
 
     print("Columnas significativas:", selected_features)
 
     return selected_features
 
 
-
-# ============================================================
 # IMPORTACIÓN DE LIBRERÍAS NECESARIAS
-# ============================================================
+
 
 import pandas as pd
 import numpy as np
